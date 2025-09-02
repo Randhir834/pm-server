@@ -25,6 +25,8 @@ const {
   debugLeadStatus,
   completeCall,
   getCompletedCalls,
+  getReadyToCallLeads,
+  moveScheduledLeadsToQueue,
 
 } = require("../controllers/leadsController");
 
@@ -113,6 +115,12 @@ router.get("/scheduled-calls", auth, getScheduledCalls);
 
 // Get not connected calls
 router.get("/not-connected-calls", auth, getNotConnectedCalls);
+
+// Get leads ready for call (scheduled time has passed)
+router.get("/ready-to-call", auth, getReadyToCallLeads);
+
+// Move scheduled leads back to call queue
+router.post("/move-to-queue", auth, moveScheduledLeadsToQueue);
 
 // Debug route to check not connected leads
 router.get("/debug-not-connected", auth, debugNotConnected);

@@ -1270,6 +1270,81 @@ const getCompletedCalls = async (req, res) => {
   }
 };
 
+// Get leads ready for call (scheduled time has passed)
+const getReadyToCallLeads = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const now = new Date();
+
+    // Build query for leads that are scheduled and ready to call
+    let query = { 
+      isActive: true, 
+      scheduledAt: { $ne: null, $lte: now },
+      callCompleted: { $ne: true }
+    };
+
+    // If user is not admin, only show leads assigned to them or created by them
+    if (req.user.role !== "admin") {
+      query.$or = [{ createdBy: req.user._id }, { assignedTo: req.user._id }];
+    }
+
+    const readyToCallLeads = await Lead.find(query)
+      .populate("createdBy", "name")
+      .populate("assignedTo", "name")
+      .sort({ scheduledAt: 1 });
+
+    res.status(200).json({
+      success: true,
+      readyToCallLeads
+    });
+  } catch (error) {
+    console.error('Error fetching ready to call leads:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Move scheduled leads back to call queue when their time arrives
+const moveScheduledLeadsToQueue = async (req, res) => {
+  try {
+    const now = new Date();
+    
+    // Find leads that are scheduled and ready to call
+    const scheduledLeads = await Lead.find({
+      isActive: true,
+      scheduledAt: { $ne: null, $lte: now },
+      callCompleted: { $ne: true }
+    });
+
+    let movedCount = 0;
+    
+    for (const lead of scheduledLeads) {
+      // Clear the scheduled time to move it back to the call queue
+      lead.scheduledAt = null;
+      await lead.save();
+      movedCount++;
+      
+      console.log(`Moved lead ${lead.name} (${lead._id}) back to call queue`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully moved ${movedCount} leads back to call queue`,
+      movedCount
+    });
+  } catch (error) {
+    console.error('Error moving scheduled leads to queue:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 
 
 module.exports = {
@@ -1293,4 +1368,6 @@ module.exports = {
   debugLeadStatus,
   completeCall,
   getCompletedCalls,
+  getReadyToCallLeads,
+  moveScheduledLeadsToQueue,
 };
