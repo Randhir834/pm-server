@@ -1,14 +1,23 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const compression = require('compression');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
 app.use(cors());
+app.use(compression());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' && req.path.startsWith('/api/')) {
+    res.set('Cache-Control', 'private, max-age=30');
+  }
+  next();
+});
 
 app.get('/', (req, res) => {
   res.send('CRM API running...');
@@ -19,14 +28,14 @@ app.get('/', (req, res) => {
 // Import routes here
 const authRoutes = require('./routes/authRoutes');
 const leadsRoutes = require('./routes/leadsRoutes');
-const sessionRoutes = require('./routes/sessionRoutes');
 const importantPointsRoutes = require('./routes/importantPointsRoutes');
+const projectsRoutes = require('./routes/projectsRoutes');
 
 
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
-app.use('/api/sessions', sessionRoutes);
 app.use('/api/important-points', importantPointsRoutes);
+app.use('/api/projects', projectsRoutes);
 
 
 // MongoDB Atlas connection with proper options

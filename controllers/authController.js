@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
-const Session = require('../models/Session');
 const Lead = require('../models/Lead');
 
 // Generate JWT Token
@@ -98,24 +97,6 @@ const login = async (req, res) => {
 
     // Update first login time of the day
     await user.updateFirstLoginTime();
-
-    // End any existing active sessions for this user
-    await Session.updateMany(
-      { userId: user._id, isActive: true },
-      { 
-        logoutTime: new Date(),
-        isActive: false 
-      }
-    );
-
-    // Create new session
-    const session = new Session({
-      userId: user._id,
-      loginTime: new Date(),
-      userAgent: req.headers['user-agent'],
-      ipAddress: req.ip || req.connection.remoteAddress
-    });
-    await session.save();
 
 
 

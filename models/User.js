@@ -118,8 +118,8 @@ userSchema.methods.generatePasswordResetToken = function() {
 
 // Method to clear password reset token
 userSchema.methods.clearPasswordResetToken = function() {
-  this.resetPasswordToken = undefined;
-  this.resetPasswordExpires = undefined;
+  this.resetPasswordToken = null;
+  this.resetPasswordExpires = null;
 };
 
 // Update last login

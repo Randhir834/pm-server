@@ -5,7 +5,6 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
-const Session = require('../models/Session');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const {
@@ -25,17 +24,34 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-for-development';
 
 // Email configuration
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your-app-password'
-  }
-});
+let transporter = null;
 
-// Only configure email if credentials are provided
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+// Only configure email if credentials are provided and not default values
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS && 
+    process.env.EMAIL_USER !== 'your-email@gmail.com' &&
+    process.env.EMAIL_PASS !== 'your-app-specific-password' &&
+    process.env.EMAIL_PASS !== 'your-app-password') {
+  transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+  
+  // Verify transporter configuration
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Email transporter verification failed:', error);
+    } else {
+      console.log('✅ Email server is ready to send messages');
+    }
+  });
+} else {
   console.warn('⚠️ Email credentials not configured. Password reset functionality will not work.');
+  console.warn('   Please set EMAIL_USER and EMAIL_PASS in your .env file');
 }
 
 // Register route
@@ -63,6 +79,14 @@ router.post('/forgot-password', [
     }
 
     const { email, clientUrl: requestClientUrl } = req.body;
+
+    // Check if email is configured
+    if (!transporter) {
+      console.error('❌ Email service not initialized. Check EMAIL_USER and EMAIL_PASS in .env file');
+      return res.status(500).json({ 
+        message: 'Email service not configured. Please contact administrator.' 
+      });
+    }
 
     // Find user by email
     const user = await User.findOne({ email });
@@ -109,14 +133,35 @@ router.post('/forgot-password', [
     };
 
     // Send email
-    await transporter.sendMail(mailOptions);
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('✅ Password reset email sent to:', user.email);
+    } catch (mailError) {
+      console.error('❌ Nodemailer sendMail failed:', {
+        code: mailError?.code,
+        responseCode: mailError?.responseCode,
+        message: mailError?.message
+      });
+
+      const responseCode = mailError?.responseCode;
+      const code = mailError?.code;
+      if (responseCode === 535 || code === 'EAUTH') {
+        return res.status(500).json({
+          message: 'Email login failed. Please verify EMAIL_USER and EMAIL_PASS (Gmail App Password) in the backend .env and restart the server.'
+        });
+      }
+
+      return res.status(500).json({
+        message: 'Unable to send reset email right now. Please try again later.'
+      });
+    }
 
     res.json({ 
       message: 'If an account with that email exists, a password reset link has been sent.' 
     });
   } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Forgot password error:', error);
+    res.status(500).json({ message: 'Server error while sending reset email' });
   }
 });
 
@@ -184,22 +229,6 @@ router.get('/me', auth, async (req, res) => {
 // Logout route (client-side token removal)
 router.post('/logout', auth, async (req, res) => {
   try {
-    // End the current session
-    const userId = req.user._id;
-
-    // Find and end the current active session
-    const session = await Session.findOne({ 
-      userId: userId, 
-      isActive: true 
-    });
-    
-    if (session) {
-      session.logoutTime = new Date();
-      session.isActive = false;
-      session.duration = session.logoutTime.getTime() - session.loginTime.getTime();
-      await session.save();
-    }
-    
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);

@@ -17,16 +17,8 @@ const {
   softDeleteLead,
   exportLeads,
   restoreLead,
-  markNotConnected,
   scheduleCall,
   getScheduledCalls,
-  getNotConnectedCalls,
-  debugNotConnected,
-  debugLeadStatus,
-  completeCall,
-  getCompletedCalls,
-  getReadyToCallLeads,
-  moveScheduledLeadsToQueue,
 
 } = require("../controllers/leadsController");
 
@@ -107,26 +99,8 @@ router.get("/", auth, getLeads);
 // Get lead statistics
 router.get("/stats", auth, getLeadStats);
 
-// Get completed calls
-router.get("/completed-calls", auth, getCompletedCalls);
-
 // Get scheduled calls
 router.get("/scheduled-calls", auth, getScheduledCalls);
-
-// Get not connected calls
-router.get("/not-connected-calls", auth, getNotConnectedCalls);
-
-// Get leads ready for call (scheduled time has passed)
-router.get("/ready-to-call", auth, getReadyToCallLeads);
-
-// Move scheduled leads back to call queue
-router.post("/move-to-queue", auth, moveScheduledLeadsToQueue);
-
-// Debug route to check not connected leads
-router.get("/debug-not-connected", auth, debugNotConnected);
-
-// Debug route to check a specific lead's status
-router.get("/debug-lead/:leadId", auth, debugLeadStatus);
 
 // Get single lead
 router.get("/:id", auth, getLead);
@@ -140,17 +114,11 @@ router.patch("/:id/status", auth, updateLeadStatus);
 // Update lead points after status update
 router.patch("/:id/points", auth, updateLeadPoints);
 
-// Complete a call for a lead
-router.put("/:leadId/complete-call", auth, completeCall);
-
 // Restore a completed lead back to active calls
 router.patch("/:leadId/restore", auth, restoreLead);
 
 // Schedule a call for a lead
 router.patch("/:leadId/schedule", auth, scheduleCall);
-
-// Mark a call as not connected
-router.patch("/:leadId/not-connected", auth, markNotConnected);
 
 
 
