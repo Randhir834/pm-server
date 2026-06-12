@@ -1,7 +1,9 @@
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
+const Session = require('../models/Session');
 
 // Generate JWT Token
 const generateToken = (userId) => {
@@ -262,40 +264,77 @@ const deleteUser = async (req, res) => {
   try {
     const userId = req.params.id;
     
+    console.log(`🗑️  Starting user deletion process for userId: ${userId}`);
+    
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.log(`   ✗ Invalid user ID format: ${userId}`);
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
+      console.log(`   ✗ User not found with id: ${userId}`);
       return res.status(404).json({ message: 'User not found' });
     }
     
     // Prevent admin from deleting themselves
     if (user._id.toString() === req.user._id.toString()) {
+      console.log(`   ✗ Admin attempted to delete their own account`);
       return res.status(400).json({ message: 'You cannot delete your own account' });
     }
     
+    console.log(`   ➤ Deleting user: ${user.name} (${user.email})`);
+    
     // Delete all sessions associated with this user
-    const deletedSessions = await Session.deleteMany({ userId: userId });
+    try {
+      const deletedSessions = await Session.deleteMany({ userId: userId });
+      console.log(`   ✓ Deleted ${deletedSessions.deletedCount} sessions`);
+    } catch (sessionError) {
+      console.error(`   ✗ Error deleting sessions:`, sessionError.message);
+      // Continue with deletion even if sessions fail
+    }
     
     // Delete all leads created by this user
-    const Lead = require('../models/Lead');
-    const deletedLeads = await Lead.deleteMany({ createdBy: userId });
+    try {
+      const deletedLeads = await Lead.deleteMany({ createdBy: userId });
+      console.log(`   ✓ Deleted ${deletedLeads.deletedCount} leads created by user`);
+    } catch (leadError) {
+      console.error(`   ✗ Error deleting leads:`, leadError.message);
+      // Continue with deletion even if leads fail
+    }
     
     // Update leads assigned to this user (set assignedTo to null)
-    const updatedLeads = await Lead.updateMany(
-      { assignedTo: userId },
-      { $set: { assignedTo: null } }
-    );
+    try {
+      const updatedLeads = await Lead.updateMany(
+        { assignedTo: userId },
+        { $set: { assignedTo: null } }
+      );
+      console.log(`   ✓ Unassigned ${updatedLeads.modifiedCount} leads from user`);
+    } catch (updateError) {
+      console.error(`   ✗ Error updating lead assignments:`, updateError.message);
+      // Continue with deletion even if update fails
+    }
     
     // Finally, delete the user
     await User.findByIdAndDelete(userId);
+    console.log(`   ✓ User deleted successfully`);
     
     res.json({
       success: true,
-      message: 'User and all associated data permanently deleted'
+      message: 'User and all associated data permanently deleted',
+      details: {
+        user: user.name
+      }
     });
   } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({ message: 'Server error during user deletion' });
+    console.error('❌ Delete user error:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Server error during user deletion',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 

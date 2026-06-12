@@ -12,6 +12,29 @@ const uploadLeads = async (req, res) => {
       });
     }
 
+    // File size validation (5MB limit)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+    if (req.file.size > MAX_FILE_SIZE) {
+      return res.status(400).json({
+        success: false,
+        message: `File size exceeds the maximum limit of 5MB. Your file is ${(req.file.size / 1024 / 1024).toFixed(2)}MB`,
+      });
+    }
+
+    // File type validation
+    const allowedMimeTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'text/csv', // .csv
+    ];
+    
+    if (!allowedMimeTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file type. Please upload an Excel (.xlsx, .xls) or CSV file",
+      });
+    }
+
     console.log("📁 File upload details:", {
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,

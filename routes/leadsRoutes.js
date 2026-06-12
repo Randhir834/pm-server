@@ -26,23 +26,28 @@ const {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit (reduced from 10MB for better security)
+    files: 1, // Only allow 1 file at a time
   },
   fileFilter: (req, file, cb) => {
-    // Accept all file types and let the processing logic handle validation
+    // Accept only specific file types
+    const allowedMimeTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'text/csv', // .csv
+    ];
+    
     const allowedExtensions = [".csv", ".xlsx", ".xls"];
     const fileExtension = file.originalname
       .toLowerCase()
       .substring(file.originalname.lastIndexOf("."));
 
-    if (allowedExtensions.includes(fileExtension)) {
+    if (allowedExtensions.includes(fileExtension) && allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(
         new Error(
-          `Invalid file type. Only ${allowedExtensions.join(
-            ", "
-          )} files are allowed.`
+          `Invalid file type. Only Excel (.xlsx, .xls) and CSV files are allowed.`
         ),
         false
       );

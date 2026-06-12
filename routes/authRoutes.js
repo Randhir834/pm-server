@@ -20,9 +20,6 @@ const {
 
 const router = express.Router();
 
-// JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-for-development';
-
 // Email configuration
 let transporter = null;
 

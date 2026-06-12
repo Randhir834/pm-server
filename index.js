@@ -4,12 +4,50 @@ const cors = require('cors');
 const compression = require('compression');
 require('dotenv').config();
 
+// Validate critical environment variables
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'somereallylongrandomsecret') {
+  console.error('❌ FATAL: JWT_SECRET is not set or is using default value. Please set a secure JWT_SECRET in .env file.');
+  process.exit(1);
+}
+
+if (!process.env.MONGO_URI) {
+  console.error('❌ FATAL: MONGO_URI is not set. Please set MONGO_URI in .env file.');
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-app.use(cors());
+// CORS Configuration - only allow specific origins
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:3000',
+  'http://localhost:3001'
+].filter(Boolean);
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked request from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(compression());
-app.use(express.json());
+
+// Add request size limits to prevent payload attacks
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 app.use('/uploads', express.static('uploads'));
 
 app.use((req, res, next) => {
@@ -17,6 +55,17 @@ app.use((req, res, next) => {
     res.set('Cache-Control', 'private, max-age=30');
   }
   next();
+});
+
+// Health check endpoint for monitoring
+app.get('/health', (req, res) => {
+  const healthCheck = {
+    uptime: process.uptime(),
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+  };
+  res.status(200).json(healthCheck);
 });
 
 app.get('/', (req, res) => {
