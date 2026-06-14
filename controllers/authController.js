@@ -20,7 +20,7 @@ const register = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, designation } = req.body;
 
     // Check if user already exists using the new static method
     const existingUser = await User.findByEmail(email);
@@ -38,6 +38,7 @@ const register = async (req, res) => {
       name,
       email,
       password,
+      designation: designation || '',
       role: role || 'user' // Default to 'user' if no role provided
     });
 
@@ -55,6 +56,7 @@ const register = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        designation: user.designation,
         role: user.role,
         createdAt: user.createdAt
       }
@@ -114,6 +116,7 @@ const login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        designation: user.designation,
         role: user.role,
         lastLogin: user.lastLogin,
         firstLoginTime: user.firstLoginTime
@@ -140,6 +143,7 @@ const getCurrentUser = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        designation: user.designation,
         role: user.role,
         isActive: user.isActive,
         lastLogin: user.lastLogin,
@@ -338,6 +342,87 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// @desc    Get user by ID (admin only)
+// @route   GET /api/auth/users/:id
+// @access  Private/Admin
+const getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
+    const user = await User.findById(userId).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ user });
+  } catch (error) {
+    console.error('Get user by ID error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Update user profile (admin only)
+// @route   PUT /api/auth/users/:id
+// @access  Private/Admin
+const updateUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { name, email, designation, department, phone, address } = req.body;
+    
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Check if email is being changed and if it's already in use
+    if (email && email !== user.email) {
+      const existingUser = await User.findByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+    }
+    
+    // Update user fields
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (designation !== undefined) user.designation = designation;
+    if (department !== undefined) user.department = department;
+    if (phone !== undefined) user.phone = phone;
+    if (address !== undefined) user.address = address;
+    
+    await user.save();
+    
+    res.json({
+      message: 'User updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        designation: user.designation,
+        department: user.department,
+        phone: user.phone,
+        address: user.address,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -346,5 +431,7 @@ module.exports = {
   updateUserRole,
   getSystemStats,
   checkFirstUser,
-  deleteUser
+  deleteUser,
+  getUserById,
+  updateUser
 };
