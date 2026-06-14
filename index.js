@@ -79,12 +79,20 @@ const authRoutes = require('./routes/authRoutes');
 const leadsRoutes = require('./routes/leadsRoutes');
 const importantPointsRoutes = require('./routes/importantPointsRoutes');
 const projectsRoutes = require('./routes/projectsRoutes');
+const employeeRoutes = require('./routes/employeeRoutes');
+const departmentRoutes = require('./routes/departmentRoutes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
+const salaryRoutes = require('./routes/salaryRoutes');
 
 
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/important-points', importantPointsRoutes);
 app.use('/api/projects', projectsRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/departments', departmentRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/salary', salaryRoutes);
 
 
 // MongoDB Atlas connection with proper options

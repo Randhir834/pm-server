@@ -15,7 +15,9 @@ const {
   updateUserRole,
   getSystemStats,
   checkFirstUser,
-  deleteUser
+  deleteUser,
+  getUserById,
+  updateUser
 } = require('../controllers/authController');
 
 const router = express.Router();
@@ -239,6 +241,12 @@ router.get('/check-first-user', checkFirstUser);
 // Admin routes
 // Get all users (admin only)
 router.get('/users', auth, admin, getAllUsers);
+
+// Get user by ID (admin only)
+router.get('/users/:id', auth, admin, getUserById);
+
+// Update user profile (admin only)
+router.put('/users/:id', auth, admin, updateUser);
 
 // Get users for filtering (authenticated users)
 router.get('/users/list', auth, async (req, res) => {
